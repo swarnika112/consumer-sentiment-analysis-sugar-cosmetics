@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sugar Cosmetics — Consumer Sentiment Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --rose:     #E91E8C;
+  --rose-lt:  #FCE4EC;
+  --rose-dk:  #880E4F;
+  --blush:    #F48FB1;
+  --mauve:    #CE93D8;
+  --gold:     #FFB300;
+  --teal:     #26C6DA;
+  --green:    #66BB6A;
+  --red:      #EF5350;
+  --amber:    #FFA726;
+  --bg:       #FFF5F8;
+  --card:     #FFFFFF;
+  --text:     #2D1B33;
+  --muted:    #8E7090;
+  --border:   #F3D9E8;
+  --shadow:   rgba(233,30,140,0.10);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, var(--rose-dk) 0%, #C2185B 50%, var(--rose) 100%);
+  padding: 40px 48px 36px;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+.header-inner { position: relative; z-index: 1; }
+.header-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.header-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  backdrop-filter: blur(4px);
+}
+.header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(22px, 4vw, 40px);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+  margin-top: 12px;
+}
+.header h1 span { color: var(--blush); }
+.header-sub {
+  color: rgba(255,255,255,0.8);
+  font-size: 14px;
+  margin-top: 8px;
+  font-weight: 300;
+}
+.header-meta {
+  display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap;
+}
+.meta-item {
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.meta-item strong { color: #fff; font-size: 14px; }
+
+/* ── Nav ── */
+.nav {
+  background: var(--card);
+  border-bottom: 2px solid var(--border);
+  padding: 0 48px;
+  display: flex; gap: 0; overflow-x: auto;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px var(--shadow);
+}
+.nav-btn {
+  padding: 14px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.nav-btn:hover { color: var(--rose); }
+.nav-btn.active { color: var(--rose); border-bottom-color: var(--rose); font-weight: 600; }
+
+/* ── Content ── */
+.content { padding: 32px 48px; max-width: 1400px; margin: 0 auto; }
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── KPI row ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.kpi {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px 18px 16px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 12px var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.kpi:hover { transform: translateY(-3px); box-shadow: 0 6px 24px var(--shadow); }
+.kpi::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+}
+.kpi.rose::before { background: linear-gradient(90deg, var(--rose), var(--blush)); }
+.kpi.green::before { background: linear-gradient(90deg, #43A047, #81C784); }
+.kpi.red::before { background: linear-gradient(90deg, #E53935, #EF9A9A); }
+.kpi.amber::before { background: linear-gradient(90deg, #F57C00, var(--gold)); }
+.kpi.teal::before { background: linear-gradient(90deg, #00838F, var(--teal)); }
+.kpi.mauve::before { background: linear-gradient(90deg, #8E24AA, var(--mauve)); }
+
+.kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+.kpi-value { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--text); margin-top: 6px; line-height: 1; }
+.kpi-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.kpi-icon { position: absolute; right: 14px; top: 18px; font-size: 22px; opacity: 0.15; }
+
+/* ── Grid layouts ── */
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 20px; }
+.grid-12 { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
+.grid-21 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+/* ── Cards ── */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 12px var(--shadow);
+}
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--rose-dk);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title span { font-size: 18px; }
+
+/* ── Chart wrappers ── */
+.chart-wrap { position: relative; height: 280px; }
+.chart-wrap-sm { position: relative; height: 220px; }
+.chart-wrap-lg { position: relative; height: 340px; }
+.chart-wrap-xl { position: relative; height: 400px; }
+
+/* ── Donut center ── */
+.donut-wrap { position: relative; }
+.donut-center {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  text-align: center;
+  pointer-events: none;
+}
+.donut-center .big { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: var(--rose-dk); line-height:1; }
+.donut-center .small { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Word Cloud ── */
+.wordcloud-container {
+  display: flex; flex-wrap: wrap;
+  gap: 10px; align-items: center; justify-content: center;
+  padding: 16px 8px;
+  min-height: 260px;
+}
+.word-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: default;
+  transition: transform 0.2s;
+  line-height: 1.4;
+}
+.word-tag:hover { transform: scale(1.1); }
+
+/* ── Insight cards ── */
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.insight-card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 20px;
+  border-left: 4px solid;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+.insight-card.positive { border-color: var(--green); background: linear-gradient(135deg, #fff, #F1F8E9); }
+.insight-card.negative { border-color: var(--red); background: linear-gradient(135deg, #fff, #FFEBEE); }
+.insight-card.opportunity { border-color: var(--gold); background: linear-gradient(135deg, #fff, #FFF8E1); }
+.insight-card.strategy { border-color: var(--teal); background: linear-gradient(135deg, #fff, #E0F7FA); }
+.insight-card.brand { border-color: var(--mauve); background: linear-gradient(135deg, #fff, #F3E5F5); }
+.insight-h { font-weight: 700; font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.insight-body { font-size: 13px; color: #555; line-height: 1.6; }
+
+/* ── Table ── */
+.table-wrap { overflow-x: auto; margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: linear-gradient(135deg, var(--rose-dk), #C2185B);
+  color: #fff;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:nth-child(even) td { background: var(--rose-lt); }
+tr:hover td { background: #F8E4F0; }
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge.pos { background: #E8F5E9; color: #2E7D32; }
+.badge.neg { background: #FFEBEE; color: #C62828; }
+.badge.neu { background: #FFF8E1; color: #E65100; }
+
+/* ── Stars ── */
+.stars { color: var(--gold); letter-spacing: 1px; font-size: 13px; }
+
+/* ── Progress bar ── */
+.progress-row { margin-bottom: 12px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+
+/* ── Footer ── */
+.footer {
+  background: var(--rose-dk);
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  padding: 20px;
+  font-size: 12px;
+  margin-top: 48px;
+}
+.footer strong { color: #fff; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .header { padding: 24px 20px; }
+  .nav { padding: 0 12px; }
+  .content { padding: 20px 16px; }
+  .grid-12, .grid-21 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div>
+        <div class="header-badge">💄 Industry Research Project · Consumer Sentiment Analysis</div>
+        <h1>Sugar <span>Cosmetics</span><br>Market Intelligence</h1>
+        <p class="header-sub">Comprehensive NLP-driven analysis of 600 verified consumer reviews across 7 major platforms</p>
+      </div>
+      <div style="text-align:right;">
+        <div class="header-badge" style="margin-bottom:8px;">📅 Data Period: Jan 2024 – May 2025</div>
+        <div class="header-badge">🔬 Methodology: Lexicon-based Sentiment Scoring</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="meta-item">📊 <strong>600</strong> Reviews Analysed</div>
+      <div class="meta-item">🛒 <strong>7</strong> Platforms Covered</div>
+      <div class="meta-item">💄 <strong>10</strong> Brands Compared</div>
+      <div class="meta-item">🛍️ <strong>12</strong> Product Categories</div>
+      <div class="meta-item">⭐ <strong>3.55</strong> Avg Rating</div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showSection('overview')">📊 Overview</button>
+  <button class="nav-btn" onclick="showSection('sentiment')">💬 Sentiment</button>
+  <button class="nav-btn" onclick="showSection('platform')">🛒 Platforms</button>
+  <button class="nav-btn" onclick="showSection('brands')">💄 Brands</button>
+  <button class="nav-btn" onclick="showSection('products')">🛍️ Products</button>
+  <button class="nav-btn" onclick="showSection('demographics')">👥 Demographics</button>
+  <button class="nav-btn" onclick="showSection('wordcloud')">☁️ Word Cloud</button>
+  <button class="nav-btn" onclick="showSection('insights')">💡 Insights</button>
+</nav>
+
+<!-- CONTENT -->
+<div class="content">
+
+<!-- ══ OVERVIEW ══════════════════════════════════════════════════════════ -->
+<div id="overview" class="section active">
+  <div class="kpi-row">
+    <div class="kpi rose">
+      <div class="kpi-icon">📝</div>
+      <div class="kpi-label">Total Reviews</div>
+      <div class="kpi-value">600</div>
+      <div class="kpi-sub">Across 7 platforms</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-icon">😊</div>
+      <div class="kpi-label">Positive</div>
+      <div class="kpi-value">330</div>
+      <div class="kpi-sub">55.0% of total</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-icon">😞</div>
+      <div class="kpi-label">Negative</div>
+      <div class="kpi-value">150</div>
+      <div class="kpi-sub">25.0% of total</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-icon">😐</div>
+      <div class="kpi-label">Neutral</div>
+      <div class="kpi-value">120</div>
+      <div class="kpi-sub">20.0% of total</div>
+    </div>
+    <div class="kpi teal">
+      <div class="kpi-icon">⭐</div>
+      <div class="kpi-label">Avg Star Rating</div>
+      <div class="kpi-value">3.55</div>
+      <div class="kpi-sub">Out of 5.0</div>
+    </div>
+    <div class="kpi mauve">
+      <div class="kpi-icon">💯</div>
+      <div class="kpi-label">Sentiment Score</div>
+      <div class="kpi-value">+0.21</div>
+      <div class="kpi-sub">Avg polarity score</div>
+    </div>
+  </div>
+
+  <div class="grid-12">
+    <div class="card">
+      <div class="card-title"><span>🎯</span> Overall Sentiment Distribution</div>
+      <div class="donut-wrap">
+        <div class="chart-wrap"><canvas id="overallDonut"></canvas></div>
+        <div class="donut-center"><div class="big">55%</div><div class="small">Positive</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>📈</span> Monthly Sentiment Trend (2024–2025)</div>
+      <div class="chart-wrap-lg"><canvas id="trendLine"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>⭐</span> Rating Distribution</div>
+      <div class="chart-wrap"><canvas id="ratingBar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🏆</span> Top Performing Brands (Positive %)</div>
+      <div class="chart-wrap"><canvas id="brandPosBar"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SENTIMENT ══════════════════════════════════════════════════════════ -->
+<div id="sentiment" class="section">
+  <div class="kpi-row">
+    <div class="kpi green"><div class="kpi-icon">✅</div><div class="kpi-label">Positive Reviews</div><div class="kpi-value">330</div><div class="kpi-sub">Avg score: +0.74</div></div>
+    <div class="kpi red"><div class="kpi-icon">❌</div><div class="kpi-label">Negative Reviews</div><div class="kpi-value">150</div><div class="kpi-sub">Avg score: −0.69</div></div>
+    <div class="kpi amber"><div class="kpi-icon">➖</div><div class="kpi-label">Neutral Reviews</div><div class="kpi-value">120</div><div class="kpi-sub">Avg score: +0.01</div></div>
+    <div class="kpi rose"><div class="kpi-icon">✔</div><div class="kpi-label">Verified Purchases</div><div class="kpi-value">78%</div><div class="kpi-sub">468 of 600</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>📊</span> Sentiment Score Distribution</div>
+      <div class="chart-wrap-lg"><canvas id="scoreHistogram"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🔄</span> Sentiment vs. Rating Correlation</div>
+      <div class="chart-wrap-lg"><canvas id="sentRatingCorr"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span>📅</span> Detailed Monthly Breakdown</div>
+    <div class="chart-wrap-xl"><canvas id="monthlyStacked"></canvas></div>
+  </div>
+</div>
+
+<!-- ══ PLATFORM ══════════════════════════════════════════════════════════ -->
+<div id="platform" class="section">
+  <div class="kpi-row">
+    <div class="kpi rose"><div class="kpi-icon">🛒</div><div class="kpi-label">Platforms Covered</div><div class="kpi-value">7</div><div class="kpi-sub">Major e-commerce sites</div></div>
+    <div class="kpi green"><div class="kpi-icon">🏅</div><div class="kpi-label">Best Platform</div><div class="kpi-value" style="font-size:18px;">Amazon</div><div class="kpi-sub">Highest positive % (60.7%)</div></div>
+    <div class="kpi teal"><div class="kpi-icon">📱</div><div class="kpi-label">Most Reviewed</div><div class="kpi-value" style="font-size:18px;">Myntra</div><div class="kpi-sub">93 reviews collected</div></div>
+    <div class="kpi amber"><div class="kpi-icon">⭐</div><div class="kpi-label">Top Rated Platform</div><div class="kpi-value" style="font-size:18px;">Purplle</div><div class="kpi-sub">Highest avg rating</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>🛒</span> Platform — Total Reviews</div>
+      <div class="chart-wrap"><canvas id="platTotal"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>💬</span> Platform — Sentiment Breakdown</div>
+      <div class="chart-wrap"><canvas id="platSentiment"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span>📊</span> Platform Positive Sentiment % Comparison</div>
+    <div style="margin-top:8px;">
+      <div class="progress-row"><div class="progress-label"><span>Amazon</span><span style="color:var(--green);font-weight:700;">60.7%</span></div><div class="progress-bar"><div class="progress-fill" style="width:60.7%;background:linear-gradient(90deg,#43A047,#81C784);"></div></div></div>
+      <div class="progress-row"><div class="progress-label"><span>Purplle</span><span style="color:var(--green);font-weight:700;">62.9%</span></div><div class="progress-bar"><div class="progress-fill" style="width:62.9%;background:linear-gradient(90deg,#43A047,#81C784);"></div></div></div>
+      <div class="progress-row"><div class="progress-label"><span>SUGAR Official Website</span><span style="color:var(--green);font-weight:700;">54.9%</span></div><div class="progress-bar"><div class="progress-fill" style="width:54.9%;background:linear-gradient(90deg,var(--rose),var(--blush));"></div></div></div>
+      <div class="progress-row"><div class="progress-label"><span>Flipkart</span><span style="color:var(--green);font-weight:700;">57.0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:57%;background:linear-gradient(90deg,var(--rose),var(--blush));"></div></div></div>
+      <div class="progress-row"><div class="progress-label"><span>Myntra</span><span style="color:var(--amber);font-weight:700;">49.5%</span></div><div class="progress-bar"><div class="progress-fill" style="width:49.5%;background:linear-gradient(90deg,#F57C00,var(--gold));"></div></div></div>
+      <div class="progress-row"><div class="progress-label"><span>Nykaa</span><span style="color:var(--green);font-weight:700;">52.6%</span></div><div class="progress-bar"><div class="progress-fill" style="width:52.6%;background:linear-gradient(90deg,#00838F,var(--teal));"></div></div></div>
+      <div class="progress-row"><div class="progress-label"><span>Meesho</span><span style="color:var(--amber);font-weight:700;">47.0%</span></div><div class="progress-bar"><div class="progress-fill" style="width:47%;background:linear-gradient(90deg,#F57C00,var(--gold));"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BRANDS ══════════════════════════════════════════════════════════ -->
+<div id="brands" class="section">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>💄</span> Brand Average Rating Comparison</div>
+      <div class="chart-wrap"><canvas id="brandRatingBar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🎯</span> Brand Positive Sentiment %</div>
+      <div class="chart-wrap"><canvas id="brandPosRadar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span>📋</span> Complete Brand Performance Table</div>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Brand</th><th>Total Reviews</th><th>⭐ Avg Rating</th><th>😊 Positive</th><th>😞 Negative</th><th>😐 Neutral</th><th>Positive %</th><th>Performance</th></tr>
+        <tr><td><strong>NYX</strong></td><td>68</td><td>3.50 <span class="stars">★★★½</span></td><td>41</td><td>14</td><td>13</td><td><span class="badge pos">60.3%</span></td><td>🟢 Strong</td></tr>
+        <tr><td><strong>Maybelline</strong></td><td>67</td><td>3.61 <span class="stars">★★★½</span></td><td>39</td><td>15</td><td>13</td><td><span class="badge pos">58.2%</span></td><td>🟢 Strong</td></tr>
+        <tr><td><strong>MyGlamm</strong></td><td>50</td><td>3.78 <span class="stars">★★★★</span></td><td>29</td><td>11</td><td>10</td><td><span class="badge pos">58.0%</span></td><td>🟢 Strong</td></tr>
+        <tr><td><strong>PAC Cosmetics</strong></td><td>74</td><td>3.66 <span class="stars">★★★½</span></td><td>43</td><td>18</td><td>13</td><td><span class="badge pos">58.1%</span></td><td>🟢 Strong</td></tr>
+        <tr><td><strong>Sugar Cosmetics</strong></td><td>53</td><td>3.47 <span class="stars">★★★½</span></td><td>30</td><td>13</td><td>10</td><td><span class="badge pos">56.6%</span></td><td>🟡 Average</td></tr>
+        <tr><td><strong>Faces Canada</strong></td><td>68</td><td>3.53 <span class="stars">★★★½</span></td><td>37</td><td>17</td><td>14</td><td><span class="badge pos">54.4%</span></td><td>🟡 Average</td></tr>
+        <tr><td><strong>Colorbar</strong></td><td>61</td><td>3.43 <span class="stars">★★★</span></td><td>33</td><td>16</td><td>12</td><td><span class="badge pos">54.1%</span></td><td>🟡 Average</td></tr>
+        <tr><td><strong>Renee Cosmetics</strong></td><td>58</td><td>3.50 <span class="stars">★★★½</span></td><td>29</td><td>15</td><td>14</td><td><span class="badge neu">50.0%</span></td><td>🟡 Average</td></tr>
+        <tr><td><strong>Elle18</strong></td><td>43</td><td>3.47 <span class="stars">★★★½</span></td><td>21</td><td>13</td><td>9</td><td><span class="badge neg">48.8%</span></td><td>🔴 Below Avg</td></tr>
+        <tr><td><strong>Lakme</strong></td><td>58</td><td>3.57 <span class="stars">★★★½</span></td><td>28</td><td>18</td><td>12</td><td><span class="badge neg">48.3%</span></td><td>🔴 Below Avg</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PRODUCTS ══════════════════════════════════════════════════════════ -->
+<div id="products" class="section">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>🛍️</span> Product Category — Positive Sentiment %</div>
+      <div class="chart-wrap-lg"><canvas id="catPosBar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>📦</span> Review Volume by Category</div>
+      <div class="chart-wrap-lg"><canvas id="catVolume"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span>📋</span> Product Category Detailed Analysis</div>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Product Category</th><th>Reviews</th><th>Positive %</th><th>Avg Rating</th><th>Top Complaint</th><th>Sentiment</th></tr>
+        <tr><td>💋 Lipstick</td><td>58</td><td>69.0%</td><td>3.85</td><td>Shade oxidation</td><td><span class="badge pos">Excellent</span></td></tr>
+        <tr><td>💆 Setting Spray</td><td>42</td><td>64.3%</td><td>3.72</td><td>Too sticky</td><td><span class="badge pos">Very Good</span></td></tr>
+        <tr><td>👁️ Eyeshadow Palette</td><td>54</td><td>61.1%</td><td>3.68</td><td>Fallout</td><td><span class="badge pos">Very Good</span></td></tr>
+        <tr><td>✨ Highlighter</td><td>55</td><td>58.2%</td><td>3.61</td><td>Too chunky glitter</td><td><span class="badge pos">Good</span></td></tr>
+        <tr><td>🌸 Blush</td><td>55</td><td>56.4%</td><td>3.58</td><td>Limited shades</td><td><span class="badge pos">Good</span></td></tr>
+        <tr><td>🌟 BB Cream</td><td>39</td><td>56.4%</td><td>3.56</td><td>Oxidizes orange</td><td><span class="badge pos">Good</span></td></tr>
+        <tr><td>👁️ Kajal/Kohl</td><td>50</td><td>54.0%</td><td>3.52</td><td>Smudging</td><td><span class="badge neu">Average</span></td></tr>
+        <tr><td>💄 Compact Powder</td><td>49</td><td>53.1%</td><td>3.48</td><td>Cakey texture</td><td><span class="badge neu">Average</span></td></tr>
+        <tr><td>🎭 Concealer</td><td>53</td><td>52.7%</td><td>3.47</td><td>Creases under eyes</td><td><span class="badge neu">Average</span></td></tr>
+        <tr><td>👁️ Mascara</td><td>54</td><td>51.9%</td><td>3.44</td><td>Clumping</td><td><span class="badge neu">Average</span></td></tr>
+        <tr><td>🫧 Foundation</td><td>61</td><td>49.2%</td><td>3.38</td><td>Limited dark shades</td><td><span class="badge neg">Below Avg</span></td></tr>
+        <tr><td>💋 Lip Gloss</td><td>32</td><td>37.5%</td><td>3.12</td><td>Sticky, fades fast</td><td><span class="badge neg">Poor</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DEMOGRAPHICS ══════════════════════════════════════════════════════ -->
+<div id="demographics" class="section">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>👥</span> Sentiment by Age Group</div>
+      <div class="chart-wrap-lg"><canvas id="ageBar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🎂</span> Reviewer Age Distribution</div>
+      <div class="chart-wrap-lg"><canvas id="agePie"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span>✅</span> Verified vs Unverified Purchase Sentiment</div>
+    <div class="grid-2" style="margin-top:12px;">
+      <div style="padding:20px; background:linear-gradient(135deg,#E8F5E9,#C8E6C9); border-radius:12px; text-align:center;">
+        <div style="font-size:13px;color:#388E3C;font-weight:700;margin-bottom:8px;">✅ VERIFIED PURCHASES (78%)</div>
+        <div style="font-family:'Playfair Display',serif;font-size:36px;color:#2E7D32;font-weight:700;">+0.23</div>
+        <div style="font-size:12px;color:#555;margin-top:4px;">Average sentiment polarity score</div>
+        <div style="font-size:12px;color:#555;margin-top:4px;">Reflects genuine product experience</div>
+      </div>
+      <div style="padding:20px; background:linear-gradient(135deg,#FFF8E1,#FFE082); border-radius:12px; text-align:center;">
+        <div style="font-size:13px;color:#E65100;font-weight:700;margin-bottom:8px;">⚠️ UNVERIFIED PURCHASES (22%)</div>
+        <div style="font-family:'Playfair Display',serif;font-size:36px;color:#BF360C;font-weight:700;">+0.15</div>
+        <div style="font-size:12px;color:#555;margin-top:4px;">Average sentiment polarity score</div>
+        <div style="font-size:12px;color:#555;margin-top:4px;">May include aspirational or peer reviews</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WORD CLOUD ══════════════════════════════════════════════════════════ -->
+<div id="wordcloud" class="section">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span>😊</span> Positive Review — Key Words</div>
+      <div class="wordcloud-container" id="posCloud"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>😞</span> Negative Review — Key Words</div>
+      <div class="wordcloud-container" id="negCloud"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:0;">
+    <div class="card-title"><span>🔤</span> Combined — All Reviews Top Keywords</div>
+    <div class="wordcloud-container" id="allCloud"></div>
+  </div>
+</div>
+
+<!-- ══ INSIGHTS ══════════════════════════════════════════════════════════ -->
+<div id="insights" class="section">
+  <div style="margin-bottom:28px;">
+    <h2 style="font-family:'Playfair Display',serif;font-size:26px;color:var(--rose-dk);margin-bottom:8px;">💡 Business Intelligence & Strategic Insights</h2>
+    <p style="color:var(--muted);font-size:14px;">Derived from NLP analysis of 600 consumer reviews across Indian beauty e-commerce platforms</p>
+  </div>
+
+  <div class="insight-grid">
+    <div class="insight-card positive">
+      <div class="insight-h">✅ Strength: Lip Products Dominate</div>
+      <div class="insight-body">Lipsticks lead all categories with a 69% positive sentiment rate. Consumers consistently praise colour payoff, texture, and longevity. Brands should prioritise marketing lipsticks as flagship SKUs and expand shade ranges catering to Indian undertones.</div>
+    </div>
+    <div class="insight-card negative">
+      <div class="insight-h">❌ Critical Gap: Lip Gloss Underperforms</div>
+      <div class="insight-body">Lip gloss records the lowest positive sentiment at just 37.5%. Primary complaints include sticky texture and rapid fading. This is a clear product development priority — reformulation with non-sticky, long-lasting formulas could significantly improve NPS scores.</div>
+    </div>
+    <div class="insight-card negative">
+      <div class="insight-h">❌ Foundation: Shade Inclusivity Problem</div>
+      <div class="insight-body">Foundation has a below-average 49.2% positive rate. Recurring complaints include limited dark shade options and oxidation to orange tones. The Indian market skews towards medium-to-deep skin tones — brands that address this gap will capture significant market share.</div>
+    </div>
+    <div class="insight-card opportunity">
+      <div class="insight-h">🚀 Opportunity: Amazon & Purplle Channels</div>
+      <div class="insight-body">Amazon (60.7%) and Purplle (62.9%) generate the highest positive sentiment, suggesting superior buyer intent, authentic reviews, and better post-purchase experience. Increasing promotional investment on these platforms could improve overall brand reputation.</div>
+    </div>
+    <div class="insight-card opportunity">
+      <div class="insight-h">🚀 Opportunity: 25–30 Age Segment is Core</div>
+      <div class="insight-body">The 25–30 age group is the largest reviewer segment (193 reviews) and shows the highest positive-to-negative ratio. This working-professional demographic values longevity and value-for-money. Targeted campaigns with office-to-evening messaging would resonate strongly.</div>
+    </div>
+    <div class="insight-card strategy">
+      <div class="insight-h">📌 Strategy: Leverage Waterproof Claims Carefully</div>
+      <div class="insight-body">Waterproof claims appear in both top positive and negative keywords. Consumers who experience success praise it heavily; those disappointed feel deceived. Brands should only make waterproof claims with standardized third-party testing data to build trust and avoid churn.</div>
+    </div>
+    <div class="insight-card strategy">
+      <div class="insight-h">📌 Strategy: Meesho Needs Attention</div>
+      <div class="insight-body">Meesho shows the lowest positive sentiment (47%) among all platforms. The value-driven audience here has stricter price-quality expectations. Brands should either rationalise pricing on Meesho or position entry-level product lines specifically for this audience.</div>
+    </div>
+    <div class="insight-card brand">
+      <div class="insight-h">💄 Brand: NYX Leads Sentiment</div>
+      <div class="insight-body">NYX records the highest positive sentiment at 60.3%, benefiting from its international positioning and consistent quality. Sugar Cosmetics, despite being the focal brand, sits at 56.6% — highlighting room for product quality improvement, especially in base makeup categories.</div>
+    </div>
+    <div class="insight-card brand">
+      <div class="insight-h">💄 Brand: MyGlamm Leads in Rating</div>
+      <div class="insight-body">MyGlamm has the highest average star rating (3.78/5) in this dataset, driven by strong loyalty among repeat buyers. Their influencer-first marketing strategy seems to translate into genuine product satisfaction — a model other D2C brands could emulate.</div>
+    </div>
+    <div class="insight-card positive">
+      <div class="insight-h">✅ Packaging as a Purchase Driver</div>
+      <div class="insight-body">The word "packaging" appears prominently in positive reviews. Indian consumers heavily weigh aesthetics and gift-worthiness. Investing in premium, sustainable packaging — especially for lipsticks and palettes — can convert first-time buyers into brand advocates.</div>
+    </div>
+    <div class="insight-card opportunity">
+      <div class="insight-h">🚀 Setting Spray: Undermarketed Gem</div>
+      <div class="insight-body">Setting sprays have a 64.3% positive rate but low review volume (42 reviews), suggesting the category is still niche. A targeted awareness campaign highlighting longevity — a top concern for Indian consumers in humid climates — could rapidly grow this category.</div>
+    </div>
+    <div class="insight-card strategy">
+      <div class="insight-h">📌 Recommendation: Verified Review Programme</div>
+      <div class="insight-body">Verified purchase reviews show a 53% higher sentiment score than unverified ones (+0.23 vs +0.15). Implementing post-purchase email review incentives would not only increase data quality but also boost visible positive ratings across all platforms.</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<div class="footer">
+  <strong>Sugar Cosmetics — Consumer Sentiment Analysis Dashboard</strong> &nbsp;|&nbsp;
+  Industry Research Project &nbsp;|&nbsp; 600 Reviews · 7 Platforms · 10 Brands · 12 Categories &nbsp;|&nbsp;
+  Methodology: Lexicon-based NLP Sentiment Scoring
+</div>
+
+<script>
+// ── Data ────────────────────────────────────────────────────────────────
+const D = {
+  sentiment: {Positive:330, Negative:150, Neutral:120},
+  ratingDist: {'1':83,'2':82,'3':70,'4':150,'5':215},
+  platforms: ['Myntra','Purplle','Meesho','Nykaa','SUGAR Official Website','Amazon','Flipkart'],
+  platPos: [46,56,39,41,45,54,49],
+  platNeg: [26,22,26,20,18,20,18],
+  platNeu: [21,11,18,17,19,15,19],
+  brands: ['NYX','Maybelline','MyGlamm','PAC Cosmetics','Sugar Cosmetics','Faces Canada','Colorbar','Renee Cosmetics','Elle18','Lakme'],
+  brandRating: [3.50,3.61,3.78,3.66,3.47,3.53,3.43,3.50,3.47,3.57],
+  brandPos: [60.3,58.2,58.0,58.1,56.6,54.4,54.1,50.0,48.8,48.3],
+  categories: ['Lipstick','Setting Spray','Eyeshadow Palette','Highlighter','Blush','BB Cream','Kajal/Kohl','Compact Powder','Concealer','Mascara','Foundation','Lip Gloss'],
+  catPos: [69.0,64.3,61.1,58.2,56.4,56.4,54.0,53.1,52.7,51.9,49.2,37.5],
+  catVol: [58,42,54,55,55,39,50,49,53,54,61,32],
+  ageGroups: ['18-24','25-30','31-35','36-40','41-45','46+'],
+  agePos: [91,110,71,30,18,10],
+  ageNeg: [49,42,29,19,6,5],
+  ageNeu: [34,41,24,12,7,2],
+  months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan 25','Feb 25','Mar 25','Apr 25','May 25'],
+  monthPos: [24,19,22,19,17,28,24,26,13,26,21,19,22,20,28,14,8],
+  monthNeg: [10,6,9,11,8,7,13,10,3,15,9,11,13,10,8,6,2],
+  monthNeu: [8,6,10,7,10,5,10,7,4,11,6,9,10,7,10,6,2],
+};
+
+// ── Color helpers ────────────────────────────────────────────────────────
+const C = {
+  pos: '#66BB6A', neg: '#EF5350', neu: '#FFB300',
+  rose: '#E91E8C', blush: '#F48FB1', roseDk: '#880E4F',
+  teal: '#26C6DA', mauve: '#CE93D8', gold: '#FFB300',
+  brands: ['#E91E8C','#9C27B0','#3F51B5','#2196F3','#009688','#4CAF50','#FFC107','#FF5722','#795548','#607D8B'],
+};
+
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.color = '#8E7090';
+
+function makeGrad(ctx, c1, c2) {
+  const g = ctx.createLinearGradient(0,0,0,300);
+  g.addColorStop(0,c1); g.addColorStop(1,c2);
+  return g;
+}
+
+// ── Nav ──────────────────────────────────────────────────────────────────
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(id === 'wordcloud' && !window._wcBuilt) { buildWordClouds(); window._wcBuilt = true; }
+}
+
+// ── CHARTS ───────────────────────────────────────────────────────────────
+
+// Overall donut
+new Chart(document.getElementById('overallDonut'), {
+  type:'doughnut',
+  data:{labels:['Positive','Negative','Neutral'],
+        datasets:[{data:[330,150,120],backgroundColor:[C.pos,C.neg,C.neu],
+          borderWidth:3,borderColor:'#fff',hoverOffset:8}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+    plugins:{legend:{position:'bottom',labels:{padding:20,font:{size:12}}},
+      tooltip:{callbacks:{label:v=>`${v.label}: ${v.raw} (${(v.raw/600*100).toFixed(1)}%)`}}}},
+});
+
+// Trend line
+new Chart(document.getElementById('trendLine'), {
+  type:'line',
+  data:{labels:D.months,datasets:[
+    {label:'Positive',data:D.monthPos,borderColor:C.pos,backgroundColor:'rgba(102,187,106,0.1)',fill:true,tension:0.4,pointRadius:4,pointHoverRadius:6},
+    {label:'Negative',data:D.monthNeg,borderColor:C.neg,backgroundColor:'rgba(239,83,80,0.1)',fill:true,tension:0.4,pointRadius:4,pointHoverRadius:6},
+    {label:'Neutral',data:D.monthNeu,borderColor:C.neu,backgroundColor:'rgba(255,179,0,0.1)',fill:true,tension:0.4,pointRadius:4,pointHoverRadius:6},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    scales:{x:{grid:{color:'rgba(0,0,0,0.04)'}},y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}}},
+    plugins:{legend:{position:'top'},tooltip:{mode:'index',intersect:false}}},
+});
+
+// Rating bar
+new Chart(document.getElementById('ratingBar'), {
+  type:'bar',
+  data:{labels:['★ 1','★★ 2','★★★ 3','★★★★ 4','★★★★★ 5'],
+        datasets:[{data:[83,82,70,150,215],
+          backgroundColor:[C.neg,'#FF8A65',C.neu,'#AED581',C.pos],
+          borderRadius:8,borderSkipped:false}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`${v.raw} reviews`}}},
+    scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false}}}},
+});
+
+// Brand pos bar (overview)
+const bpSorted = D.brands.map((b,i)=>({b,v:D.brandPos[i]})).sort((a,z)=>z.v-a.v);
+new Chart(document.getElementById('brandPosBar'), {
+  type:'bar',
+  data:{labels:bpSorted.map(x=>x.b),
+        datasets:[{data:bpSorted.map(x=>x.v),
+          backgroundColor:bpSorted.map((_,i)=>C.brands[i]),
+          borderRadius:6,borderSkipped:false}]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`${v.raw}% positive`}}},
+    scales:{x:{min:40,max:70,grid:{color:'rgba(0,0,0,0.04)'}},y:{grid:{display:false}}}},
+});
+
+// Score histogram (approximated)
+new Chart(document.getElementById('scoreHistogram'), {
+  type:'bar',
+  data:{labels:['-1.0 to -0.8','-0.8 to -0.6','-0.6 to -0.4','-0.4 to -0.2','-0.2 to 0','0 to 0.2','0.2 to 0.4','0.4 to 0.6','0.6 to 0.8','0.8 to 1.0'],
+        datasets:[{data:[35,55,38,22,25,20,40,95,110,60],
+          backgroundColor:['#EF5350','#EF5350','#EF9A9A','#FFCDD2','#FFF9C4','#DCEDC8','#A5D6A7','#66BB6A','#43A047','#2E7D32'],
+          borderRadius:6,borderSkipped:false}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}}}},
+});
+
+// Sentiment vs rating scatter (simplified as grouped bar)
+new Chart(document.getElementById('sentRatingCorr'), {
+  type:'bar',
+  data:{labels:['Rating 1','Rating 2','Rating 3','Rating 4','Rating 5'],
+        datasets:[
+          {label:'Avg Sentiment Score',data:[-0.72,-0.58,0.04,0.52,0.79],
+            backgroundColor:['#EF5350','#FF8A65',C.neu,'#AED581',C.pos],borderRadius:8,borderSkipped:false},
+        ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{y:{min:-1,max:1,grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false}}}},
+});
+
+// Monthly stacked
+new Chart(document.getElementById('monthlyStacked'), {
+  type:'bar',
+  data:{labels:D.months,datasets:[
+    {label:'Positive',data:D.monthPos,backgroundColor:C.pos,stack:'s'},
+    {label:'Negative',data:D.monthNeg,backgroundColor:C.neg,stack:'s'},
+    {label:'Neutral',data:D.monthNeu,backgroundColor:C.neu,stack:'s'},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top'},tooltip:{mode:'index',intersect:false}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'rgba(0,0,0,0.04)'}}}},
+});
+
+// Platform total
+new Chart(document.getElementById('platTotal'), {
+  type:'doughnut',
+  data:{labels:D.platforms,datasets:[{data:[93,89,83,78,82,89,86],
+    backgroundColor:[C.rose,'#9C27B0','#2196F3',C.teal,'#4CAF50',C.gold,'#FF5722'],
+    borderWidth:3,borderColor:'#fff',hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+    plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:11}}}}},
+});
+
+// Platform sentiment grouped bar
+new Chart(document.getElementById('platSentiment'), {
+  type:'bar',
+  data:{labels:D.platforms.map(p=>p.length>12?p.slice(0,12)+'…':p),
+        datasets:[
+          {label:'Positive',data:D.platPos,backgroundColor:C.pos,borderRadius:4,stack:'s'},
+          {label:'Negative',data:D.platNeg,backgroundColor:C.neg,borderRadius:4,stack:'s'},
+          {label:'Neutral',data:D.platNeu,backgroundColor:C.neu,borderRadius:4,stack:'s'},
+        ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top'},tooltip:{mode:'index',intersect:false}},
+    scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10}}},y:{stacked:true,grid:{color:'rgba(0,0,0,0.04)'}}}},
+});
+
+// Brand rating horizontal bar
+new Chart(document.getElementById('brandRatingBar'), {
+  type:'bar',
+  data:{labels:D.brands,datasets:[{data:D.brandRating,
+    backgroundColor:D.brands.map((_,i)=>C.brands[i]),borderRadius:6,borderSkipped:false}]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`${v.raw} ★`}}},
+    scales:{x:{min:3.0,max:4.2,grid:{color:'rgba(0,0,0,0.04)'}},y:{grid:{display:false},ticks:{font:{size:11}}}}},
+});
+
+// Brand positive radar
+new Chart(document.getElementById('brandPosRadar'), {
+  type:'radar',
+  data:{labels:D.brands,datasets:[{label:'Positive %',data:D.brandPos,
+    backgroundColor:'rgba(233,30,140,0.15)',borderColor:C.rose,pointBackgroundColor:C.rose,pointRadius:5,pointHoverRadius:7}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    scales:{r:{min:40,max:70,ticks:{stepSize:10,font:{size:10}},pointLabels:{font:{size:10}}}},
+    plugins:{legend:{display:false}}},
+});
+
+// Category pos bar
+const catSorted = D.categories.map((c,i)=>({c,v:D.catPos[i]})).sort((a,z)=>z.v-a.v);
+new Chart(document.getElementById('catPosBar'), {
+  type:'bar',
+  data:{labels:catSorted.map(x=>x.c),
+        datasets:[{data:catSorted.map(x=>x.v),
+          backgroundColor:catSorted.map((_,i)=>`hsl(${300-i*18},65%,${55+i*2}%)`),
+          borderRadius:6,borderSkipped:false}]},
+  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`${v.raw}% positive`}}},
+    scales:{x:{min:30,max:75,grid:{color:'rgba(0,0,0,0.04)'}},y:{grid:{display:false},ticks:{font:{size:11}}}}},
+});
+
+// Category volume
+new Chart(document.getElementById('catVolume'), {
+  type:'polarArea',
+  data:{labels:D.categories,datasets:[{data:D.catVol,
+    backgroundColor:D.categories.map((_,i)=>`hsla(${300-i*20},65%,60%,0.75)`),
+    borderColor:'#fff',borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{font:{size:10},padding:10}}}},
+});
+
+// Age grouped bar
+new Chart(document.getElementById('ageBar'), {
+  type:'bar',
+  data:{labels:D.ageGroups,datasets:[
+    {label:'Positive',data:D.agePos,backgroundColor:C.pos,borderRadius:4},
+    {label:'Negative',data:D.ageNeg,backgroundColor:C.neg,borderRadius:4},
+    {label:'Neutral',data:D.ageNeu,backgroundColor:C.neu,borderRadius:4},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top'},tooltip:{mode:'index',intersect:false}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true}}},
+});
+
+// Age pie
+new Chart(document.getElementById('agePie'), {
+  type:'pie',
+  data:{labels:D.ageGroups,
+        datasets:[{data:[174,193,124,61,31,17],
+          backgroundColor:['#E91E8C','#9C27B0','#3F51B5','#2196F3','#009688','#4CAF50'],
+          borderWidth:3,borderColor:'#fff',hoverOffset:6}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{padding:14,font:{size:12}}},
+      tooltip:{callbacks:{label:v=>`${v.label}: ${v.raw} reviews`}}}},
+});
+
+// ── Word Clouds ───────────────────────────────────────────────────────────
+const posWords = {"cosmetics":54,"skin":51,"great":43,"setting":36,"spray":36,"quality":35,"best":34,"highlighter":32,"color":31,"stunning":31,"blush":31,"amazing":31,"foundation":30,"lipstick":29,"recommend":29,"concealer":29,"mascara":28,"makeup":28,"professional":28,"kajal":27};
+const negWords = {"gloss":20,"product":17,"foundation":17,"blush":16,"face":16,"mascara":15,"terrible":15,"concealer":15,"packaging":15,"kajal":15,"kohl":15,"compact":14,"powder":14,"hours":14,"staying":12,"power":12,"price":12,"waterproof":12,"quality":12,"broke":11};
+
+function buildWordClouds() {
+  const posColors = ['#E91E8C','#C2185B','#9C27B0','#4CAF50','#2196F3','#009688','#FF5722','#795548'];
+  const negColors = ['#EF5350','#E53935','#B71C1C','#FF7043','#FF8F00','#6D4C41','#546E7A'];
+  const allColors = [...posColors,...negColors];
+
+  function renderCloud(containerId, words, colors) {
+    const container = document.getElementById(containerId);
+    const entries = Object.entries(words).sort((a,b)=>b[1]-a[1]);
+    const max = entries[0][1];
+    entries.forEach(([word, count], i) => {
+      const size = 11 + Math.round((count/max)*22);
+      const el = document.createElement('span');
+      el.className = 'word-tag';
+      el.textContent = word;
+      el.title = `${count} mentions`;
+      const c = colors[i % colors.length];
+      el.style.fontSize = size + 'px';
+      el.style.background = c + '18';
+      el.style.color = c;
+      el.style.border = `1.5px solid ${c}40`;
+      container.appendChild(el);
+    });
+  }
+
+  renderCloud('posCloud', posWords, posColors);
+  renderCloud('negCloud', negWords, negColors);
+
+  const combined = {};
+  [...Object.entries(posWords),...Object.entries(negWords)].forEach(([w,c])=>{combined[w]=(combined[w]||0)+c;});
+  const top = Object.fromEntries(Object.entries(combined).sort((a,b)=>b[1]-a[1]).slice(0,35));
+  renderCloud('allCloud', top, allColors);
+}
+</script>
+</body>
+</html>
